@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nahid</title>
+    <style>
+        * { box-sizing: border-box; }
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; background-color: #000; 
+        }
+        iframe { 
+            border: none; width: 100vw; height: 100vh; 
+            display: block; position: absolute; top: 0; left: 0;
+        }
+        #error-screen { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: #0f172a; color: white; display: none; 
+            flex-direction: column; align-items: center; justify-content: center; 
+            text-align: center; font-family: sans-serif; padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="error-screen"></div>
+    <iframe id="app-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-modals"></iframe>
+
+    <script>
+        const frame = document.getElementById('app-frame');
+        const errScreen = document.getElementById('error-screen');
+        let lastKnownCode = "";
+
+        function sync() {
+            try {
+                const data = JSON.parse(localStorage.getItem('live_sync_v9') || '[]');
+                const current = data.find(p => p.id === "PROJ-1771743042250");
+
+                if (!current) {
+                    showError("404: DISCONNECTED", "এই প্রজেক্টটি সার্ভার থেকে ডিলিট করা হয়েছে।");
+                    return;
+                }
+
+                if (current.blocked) {
+                    showError("403: BLOCKED", "সার্ভার অ্যাডমিন এই প্রজেক্টটি ব্লক করেছেন।");
+                    return;
+                }
+
+                if (current.code !== lastKnownCode) {
+                    errScreen.style.display = "none";
+                    frame.style.display = "block";
+                    lastKnownCode = current.code;
+
+                    // কোড ইনজেকশন উইথ রেসপনসিভ মেটা ট্যাগ
+                    let finalCode = current.code;
+                    if(!finalCode.includes('viewport')){
+                        finalCode = '<meta name="viewport" content="width=device-width, initial-scale=1.0">' + finalCode;
+                    }
+
+                    const doc = frame.contentWindow.document;
+                    doc.open();
+                    doc.write(finalCode);
+                    doc.close();
+                }
+            } catch (e) { console.error("Sync Error", e); }
+        }
+
+        function showError(title, msg) {
+            frame.style.display = "none";
+            errScreen.style.display = "flex";
+            errScreen.innerHTML = "<h1>"+title+"</h1><p>"+msg+"</p>";
+        }
+
+        setInterval(sync, 1000);
+        sync();
+    </script>
+</body>
+</html>
